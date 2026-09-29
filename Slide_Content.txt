@@ -1,0 +1,232 @@
+QUY TRÌNH CHUẨN HÓA VÀ LÀM SẠCH DỮ LIỆU BẤT ĐỘNG SẢN
+(Tài liệu thiết kế Slide - Cấu trúc bóc tách rõ ràng Code và Lời giải thích)
+
+=========================================
+--- SLIDE 1: TIÊU ĐỀ & BỐI CẢNH DỰ ÁN ---
+=========================================
+[THỰC TRẠNG DỮ LIỆU]
+Dữ liệu thu thập trực tiếp từ các trang web rao vặt luôn tồn tại 4 vấn đề lớn:
+1. Chứa tin ảo (nhà siêu nhỏ giá siêu cao).
+2. Lỗi định dạng chữ (dính liền chữ và số: "50 m2", "3 tỷ").
+3. Lỗi font tiếng Việt (gõ sai chính tả, khác bảng mã).
+4. Rất nhiều thông tin bị người đăng bỏ trống.
+
+[NHU CẦU CẤP THIẾT]
+Nếu tính toán và vẽ biểu đồ ngay trên mớ dữ liệu hỗn độn này, toàn bộ báo cáo sẽ bị sai lệch hoàn toàn. Cần một quy trình làm sạch nghiêm ngặt.
+
+=========================================
+--- SLIDE 2: MỤC TIÊU & QUY TRÌNH 6 BƯỚC CỐT LÕI ---
+=========================================
+[MỤC TIÊU]
+Xây dựng một luồng xử lý tự động (Data Pipeline) bằng Python để gột rửa dữ liệu thô thành Dữ liệu sạch 100%.
+
+[6 BƯỚC TIỀN XỬ LÝ]
+1. Data Audit: Khám bệnh toàn diện dữ liệu.
+2. Basic Cleaning: Dọn dẹp cột thừa và xóa tin rao lặp lại.
+3. Consistency: Chuẩn hóa tiếng Việt và bóc tách con số.
+4. Missing Values: Xử lý các ô dữ liệu bị bỏ trống.
+5. Outliers: Trị các tin ảo bằng quy tắc thống kê.
+6. Encoding & Scaling: Số hóa văn bản để máy tính hiểu.
+
+=========================================
+--- SLIDE 3: BƯỚC 1.1 - ĐỊNH NGHĨA HÀM KIỂM TOÁN DỮ LIỆU ---
+=========================================
+[VẤN ĐỀ] 
+Khi nhận được một bộ dữ liệu lớn gồm hàng chục ngàn dòng, ta không thể mở Excel ra xem bằng mắt thường.
+
+[GIẢI PHÁP] 
+Ta sẽ tự định nghĩa (viết) một hàm Python gộp chung 4 câu lệnh mạnh nhất lại với nhau, biến nó thành một "máy chụp X-Quang" để quét lỗi toàn bộ hệ thống.
+
+[ĐOẠN CODE MINH HỌA]
+def audit_data(df):
+    print("1. KÍCH THƯỚC BẢNG:", df.shape)
+    print("2. KIỂU DỮ LIỆU TỪNG CỘT:")
+    df.info()
+    print("3. TỔNG SỐ Ô BỊ TRỐNG:")
+    print(df.isna().sum())
+    print("4. TỔNG SỐ DÒNG BỊ TRÙNG LẶP:")
+    print(df.duplicated().sum())
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- def audit_data(df): Câu lệnh dùng để tạo ra một công cụ mới mang tên 'audit_data'.
+- df.shape: Quét và đếm xem bảng dữ liệu có tổng cộng bao nhiêu dòng (căn nhà) và bao nhiêu cột (đặc điểm).
+- df.info(): Kiểm tra xem máy tính đang nhận diện các cột là kiểu Chữ hay kiểu Số. Rất quan trọng để phát hiện lỗi định dạng.
+- df.isna().sum(): Tìm các ô bị bỏ trống (isna) và cộng dồn lại (sum). Giúp ta biết cột nào đang thiếu thông tin trầm trọng nhất.
+- df.duplicated().sum(): Đếm xem có bao nhiêu tin rao bán bị copy giống hệt nhau 100%.
+
+=========================================
+--- SLIDE 4: BƯỚC 1.2 - THỰC THI: CHẠY LỆNH KIỂM TOÁN ---
+=========================================
+[Ý NGHĨA]
+Sau khi đã chế tạo xong công cụ ở Slide 3, ta sẽ tiến hành nạp dữ liệu và bấm nút chạy thử để xem kết quả trả về.
+
+[ĐOẠN CODE MINH HỌA]
+df = pd.read_csv("data/raw/bds_raw_hanoi_ultimate.csv", encoding='utf-8')
+
+audit_data(df)
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- pd.read_csv(...): Lệnh tải file dữ liệu vào bộ nhớ. Bắt buộc phải có "encoding='utf-8'" thì mới đọc được dấu tiếng Việt.
+- audit_data(df): Gọi tên công cụ vừa tạo ở trên và truyền dữ liệu 'df' vào để nó bắt đầu chụp chiếu. Kết quả in ra sẽ là cơ sở để ta tiến hành các bước dọn rác tiếp theo.
+
+=========================================
+--- SLIDE 5: BƯỚC 2.1 - LOẠI BỎ CỘT RÁC HỆ THỐNG ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+if 'Unnamed: 0' in df.columns:
+    df = df.drop(columns=['Unnamed: 0'])
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- if 'Unnamed: 0' in df.columns: Lệnh kiểm tra xem trong bảng dữ liệu có tồn tại cột rác mang tên "Unnamed: 0" hay không (cột này hay tự sinh ra do lỗi lưu file).
+- df.drop(columns=[...]): Nếu có, dùng lệnh drop (vứt bỏ) để xóa vĩnh viễn cột này khỏi bộ nhớ, giúp làm nhẹ hệ thống.
+
+=========================================
+--- SLIDE 6: BƯỚC 2.2 - XÓA BẢN GHI TRÙNG LẶP (DUPLICATE) ---
+=========================================
+[Ý NGHĨA]
+Một môi giới có thể đăng 1 căn nhà lên 10 trang web khác nhau. Nếu không xóa bản sao, việc tính "Giá trung bình" sẽ bị kéo lệch hoàn toàn về phía căn nhà này.
+
+[ĐOẠN CODE MINH HỌA]
+df = df.drop_duplicates()
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- df.drop_duplicates(): Lệnh này cực kỳ thông minh, nó tự động quét ngang tất cả các cột. Nếu nó phát hiện 2 dòng có nội dung y hệt nhau từng chữ một, nó sẽ giữ lại 1 bản gốc và xóa sạch các bản copy.
+
+=========================================
+--- SLIDE 7: BƯỚC 3.1 - VẤN ĐỀ CỦA DỮ LIỆU CHỮ (TEXT) ---
+=========================================
+[KHÓ KHĂN]
+Dữ liệu gõ tay từ người dùng sẽ gây ra 3 lỗi khiến phần mềm phân tích bị rối:
+1. Lỗi viết hoa/thường: "Cầu Giấy", "CẦU GIẤY", và "cầu giấy" bị phần mềm đếm thành 3 quận khác nhau.
+2. Lỗi khoảng trắng: Vô tình bấm phím cách ở đầu/cuối chữ.
+3. Lỗi bảng mã: Cùng một chữ nhưng gõ bằng chuẩn Unicode khác nhau sẽ bị tách rời dấu.
+
+=========================================
+--- SLIDE 8: BƯỚC 3.2 - HÀM CHUẨN HÓA VĂN BẢN (NORMALIZATION) ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+import unicodedata
+
+def normalize_vn(text):
+    if pd.isna(text): return text
+    
+    text = str(text) 
+    text = unicodedata.normalize('NFC', text)
+    
+    return text.lower().strip()
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- if pd.isna(text): Kiểm tra nếu ô dữ liệu bị bỏ trống thì bỏ qua, không xử lý để tránh báo lỗi.
+- str(text): Ép dữ liệu về dạng Chuỗi văn bản để an toàn.
+- unicodedata.normalize('NFC', text): Ép toàn bộ các kiểu gõ tiếng Việt về chung một chuẩn duy nhất là NFC. Sửa dứt điểm lỗi font chữ.
+- text.lower(): Ép tất cả các chữ cái thành viết thường 100%.
+- text.strip(): Gọt bỏ mọi dấu cách (khoảng trắng) dư thừa ở đầu và cuối chữ.
+
+=========================================
+--- SLIDE 9: BƯỚC 3.3 - ÁP DỤNG CHUẨN HÓA VĂN BẢN ---
+=========================================
+[Ý NGHĨA]
+Thay vì phải dùng chuột sửa tay hàng chục ngàn dòng Excel, ta ra lệnh cho Python tự động quét qua.
+
+[ĐOẠN CODE MINH HỌA]
+df['Quận'] = df['Quận'].apply(normalize_vn)
+df['Loại hình nhà ở'] = df['Loại hình nhà ở'].apply(normalize_vn)
+df['Giấy tờ pháp lý'] = df['Giấy tờ pháp lý'].apply(normalize_vn)
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- Lệnh .apply(): Chức năng này giống như một "băng chuyền". Nó sẽ bốc từng ô dữ liệu trong cột (ví dụ cột Quận), ném vào hàm normalize_vn vừa viết ở trên để làm sạch, rồi trả lại kết quả gọn gàng vào chỗ cũ chỉ trong chớp mắt.
+
+=========================================
+--- SLIDE 10: BƯỚC 3.4 - BÓC TÁCH CON SỐ TỪ CHUỖI (EXTRACTION) ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+def clean_price(x):
+    if pd.isna(x): return np.nan
+    
+    s = str(x).lower().replace('triệu/m²', '').replace('triệu/m2', '').replace(',', '.').strip()
+    
+    try: 
+        return float(s) 
+    except: 
+        return np.nan
+
+df['Giá_m2_trieu'] = df['Giá/m2'].apply(clean_price)
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- Lệnh replace('triệu/m2', ''): Xóa cụm từ văn bản đi kèm bằng cách thay thế nó bằng một chuỗi rỗng.
+- Lệnh replace(',', '.'): Đổi dấu phẩy thành dấu chấm. Bước này bắt buộc vì chuẩn quốc tế dùng dấu chấm cho số thập phân (Ví dụ 2.5), nếu để dấu phẩy phần mềm sẽ báo lỗi.
+- Lệnh float(s): Lệnh quan trọng nhất, ép cụm từ "2.5" (đang bị coi là chữ) thành Con Số Thực 2.5 để có thể làm toán (cộng trừ nhân chia).
+
+=========================================
+--- SLIDE 11: BƯỚC 4.1 - HAI CHIẾN LƯỢC XỬ LÝ KHUYẾT THIẾU ---
+=========================================
+[CHIẾN LƯỢC 1: CẮT BỎ HOÀN TOÀN]
+- Áp dụng cho thông tin Cốt lõi (Giá, Diện tích). 
+- Nguyên tắc: Nếu người bán không nhập, ta BẮT BUỘC PHẢI XÓA BỎ dòng đó. Tuyệt đối không được tự bịa ra hay suy đoán giá nhà vì sẽ phá hỏng tính trung thực của báo cáo.
+
+[CHIẾN LƯỢC 2: TẠO CỜ HIỆU]
+- Áp dụng cho thông tin Phụ (Ví dụ: Số tầng). 
+- Nguyên tắc: Một mảnh đất nền sẽ tự nhiên không có số tầng. Ta không xóa để tránh lãng phí dữ liệu, mà sẽ tạo một "cờ hiệu" (đánh dấu 1) để báo cho máy tính: Nhà này đặc biệt, không có tầng.
+
+=========================================
+--- SLIDE 12: BƯỚC 4.2 - THỰC THI: XÓA BỎ & ĐÁNH CỜ HIỆU ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+df = df.dropna(subset=['Giá_m2_trieu', 'Diện tích m2'])
+
+df['Thieu_So_Tang'] = df['Số tầng'].isna().astype(int)
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- Lệnh df.dropna(subset=[...]): Hành động của Chiến lược 1. Nó sẽ rà soát cột Giá và Diện tích, hễ thấy ô nào bị trống (NaN) là nó sẽ xóa bay luôn cả dòng dữ liệu đó khỏi bộ nhớ.
+- Lệnh df['Số tầng'].isna(): Kiểm tra xem số tầng có bị trống không (Trả về Đúng hoặc Sai).
+- Lệnh .astype(int): Hành động của Chiến lược 2. Biến kết quả Đúng/Sai thành con số 1 (Bị khuyết) và 0 (Có số tầng). Cuối cùng lưu vào một cột mới toanh tên là 'Thieu_So_Tang'.
+
+=========================================
+--- SLIDE 13: BƯỚC 5.1 - LÝ THUYẾT GIÁ TRỊ NGOẠI LỆ (OUTLIERS) ---
+=========================================
+[VẤN ĐỀ]
+Tin ảo (nhà hẻm 10m2 bán 100 tỷ) là những điểm Ngoại lệ (Outliers). Nó kéo mức giá trung bình của cả quận vọt lên sai sự thật, làm hỏng mọi biểu đồ phân tích.
+
+[CÁCH TRỊ BẰNG THỐNG KÊ (QUY TẮC IQR)]
+1. Chia dữ liệu làm 4 phần. Tìm mức phân vị 25% (Q1) và 75% (Q3) để lấy ra phần đông phổ biến nhất của thị trường.
+2. Dùng công thức toán học tính ra một "Mức Trần". Giá nhà nào vọt qua mức trần này đều bị coi là bất thường (tin ảo).
+
+=========================================
+--- SLIDE 14: BƯỚC 5.2 - KỸ THUẬT CẮT NGỌN (CLIPPING) NGOẠI LỆ ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+Q1 = df['Giá_m2_trieu'].quantile(0.25)
+Q3 = df['Giá_m2_trieu'].quantile(0.75)
+IQR = Q3 - Q1
+upper_bound = Q3 + 1.5 * IQR
+
+df['Giá_m2_trieu'] = df['Giá_m2_trieu'].clip(lower=0, upper=upper_bound)
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- Lệnh quantile(0.25) và (0.75): Dùng thuật toán để tìm ra các mốc giá trị của Q1 và Q3.
+- upper_bound = Q3 + 1.5 * IQR: Công thức kinh điển của Thống kê để tính ra Mức trần (Upper bound) hợp lý của thị trường.
+- Lệnh clip(lower=0, upper=upper_bound): Kỹ thuật "cắt ngọn". Thay vì xóa bỏ làm thất thoát dữ liệu, lệnh này sẽ quét qua toàn bộ, hễ thấy giá nào Đắt Hơn mức trần (upper_bound) thì nó sẽ ép giá đó lùi xuống Bằng Đúng với mức trần.
+
+=========================================
+--- SLIDE 15: BƯỚC 6 - ĐÓNG GÓI BẰNG PIPELINE (SỐ HÓA HOÀN TOÀN) ---
+=========================================
+[ĐOẠN CODE MINH HỌA]
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, RobustScaler
+from sklearn.impute import SimpleImputer
+
+num_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')), 
+    ('scaler', RobustScaler())
+])
+
+cat_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='khong_ro')), 
+    ('onehot', OneHotEncoder(handle_unknown='ignore', drop='first'))
+])
+
+[GIẢI THÍCH CHI TIẾT TỪNG DÒNG CODE]
+- Lệnh Pipeline(...): Tạo ra một dây chuyền tự động hóa.
+- Lệnh SimpleImputer: Trám các lỗ hổng còn sót lại. Nếu là Số thì trám bằng giá trị ở Giữa (median). Nếu là Chữ thì trám bằng chữ "khong_ro".
+- Lệnh RobustScaler: Chuẩn hóa thang đo, ép các con số siêu to (tiền tỷ) và siêu nhỏ (số tầng) về chung một tỷ lệ chuẩn mực để phần mềm dễ tính toán.
+- Lệnh OneHotEncoder: Số hóa văn bản. Phần mềm không biết đọc chữ "Quận Cầu Giấy", hàm này sẽ tự động biến chữ đó thành các cột chứa mã nhị phân 0 và 1. Dữ liệu lúc này sạch 100% và chỉ toàn là Số!
