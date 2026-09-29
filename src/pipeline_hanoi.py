@@ -46,13 +46,13 @@ def clean_rooms(x):
 
 def run_pipeline():
     # 1. Load data
-    raw_files = glob.glob("data/raw/bds_raw_hanoi_*.csv")
-    if not raw_files:
-        print("Không tìm thấy dữ liệu thô!")
+    raw_file = "data/raw/bds_raw_hanoi_ultimate.csv"
+    if not os.path.exists(raw_file):
+        print(f"Không tìm thấy dữ liệu thô tại {raw_file}!")
         return
-    latest_file = max(raw_files, key=os.path.getctime)
-    print(f"Đang đọc dữ liệu từ: {latest_file}")
-    df = pd.read_csv(latest_file, encoding='utf-8')
+        
+    print(f"Đang đọc 1 nguồn dữ liệu duy nhất từ: {raw_file}")
+    df = pd.read_csv(raw_file, encoding='utf-8')
     
     print("\n[BƯỚC 1 & 2] KIỂM TOÁN DỮ LIỆU BAN ĐẦU")
     audit_data(df)
