@@ -1,206 +1,63 @@
-# QUY TRÌNH CHUẨN HÓA VÀ LÀM SẠCH DỮ LIỆU BẤT ĐỘNG SẢN
-*(Tài liệu dàn ý 15 Slides - Giải thích chi tiết, chuyên sâu về Phân tích Dữ liệu)*
+# TÀI LIỆU BÁO CÁO CHI TIẾT QUY TRÌNH TIỀN XỬ LÝ DỮ LIỆU BẤT ĐỘNG SẢN
+
+Tài liệu này là Báo cáo Kỹ thuật (Technical Report) trình bày cặn kẽ và chuyên sâu về các hành động, phương pháp và chiến lược đã được thực thi để biến đổi bộ dữ liệu thô (Raw Data) thành một bộ dữ liệu sạch hoàn toàn (Clean Data). 
 
 ---
 
-## SLIDE 1: TIÊU ĐỀ & BỐI CẢNH DỰ ÁN
-*   **Thực trạng Dữ liệu (Pain Points):** Dữ liệu thu thập trực tiếp từ các trang web rao vặt luôn tồn tại 4 vấn đề lớn:
-    1. Chứa "tin ảo" (nhà siêu nhỏ giá siêu cao).
-    2. Lỗi định dạng chữ (dính liền chữ và số: "50 m2", "3 tỷ").
-    3. Lỗi font tiếng Việt (gõ sai chính tả, khác bảng mã).
-    4. Rất nhiều thông tin bị người đăng bỏ trống.
-*   **Nhu cầu cấp thiết:** Nếu tính toán và vẽ biểu đồ ngay trên mớ dữ liệu hỗn độn này, toàn bộ báo cáo sẽ bị sai lệch hoàn toàn.
+## 1. Bối Cảnh và Mục Tiêu
+*   **Đầu vào:** Bộ dữ liệu cào từ các nền tảng rao vặt bất động sản (`raw.csv`). Dữ liệu ban đầu mang rất nhiều lỗi đặc trưng của người dùng nhập liệu tay (sai chính tả, dính chữ vào số, bỏ trống thông tin, hoặc rao giá ảo).
+*   **Mục tiêu:** Xử lý triệt để các rác thải dữ liệu, đồng nhất định dạng và đóng gói toàn bộ quy trình thành một luồng tự động (Pipeline). Dữ liệu đầu ra phải đảm bảo tính trung thực và chuẩn mực cao nhất để phục vụ cho các báo cáo phân tích thống kê chuyên sâu.
 
 ---
 
-## SLIDE 2: MỤC TIÊU & QUY TRÌNH 6 BƯỚC CỐT LÕI
-*   **Mục tiêu:** Xây dựng một luồng xử lý tự động (Data Pipeline) bằng thư viện Pandas để gột rửa dữ liệu thô thành Dữ liệu sạch 100%.
-*   **6 Bước Tiền xử lý (Preprocessing Pipeline):**
-    1. **Data Audit:** "Khám bệnh" toàn diện dữ liệu.
-    2. **Basic Cleaning:** Dọn dẹp cột thừa và xóa tin rao lặp lại.
-    3. **Consistency:** Chuẩn hóa tiếng Việt và bóc tách con số.
-    4. **Missing Values:** Xử lý các ô dữ liệu bị bỏ trống.
-    5. **Outliers:** Trị các "tin ảo" bằng quy tắc thống kê.
-    6. **Encoding & Scaling:** Số hóa văn bản để máy tính hiểu.
+## 2. Phân Tích Cặn Kẽ Các Hành Động Đã Thực Thi (Theo Trình Tự)
+
+Quy trình làm sạch được thực thi nghiêm ngặt qua 6 phân đoạn sau:
+
+### Phân đoạn 1: Khởi tạo và Khám bệnh Dữ liệu (Data Audit)
+Trước khi tiến hành can thiệp vào cấu trúc bảng, hệ thống thực hiện một bước "kiểm toán" toàn diện để chẩn đoán mức độ nhiễu của dữ liệu.
+*   **Chi tiết hành động thực thi:**
+    1. **Quét kích thước ma trận:** Hệ thống đọc file `.csv` và đo lường chính xác tổng số dòng (số lượng bản ghi) và số cột (số lượng thuộc tính).
+    2. **Phân tích Kiểu dữ liệu (Dtypes):** Kiểm tra xem hệ thống phân tích đang nhận diện từng cột là Chữ (Object) hay Số (Float/Int). (Tại bước này đã phát hiện cột "Giá" đang bị nhận nhầm là chữ do chứa ký tự).
+    3. **Thống kê Lỗ hổng (Missing values):** Quét qua toàn bộ các ô, đếm chính xác số lượng ô chứa giá trị `NaN` (trống) tại từng cột để lên phương án xử lý (Cột nào trống nhiều, cột nào trống ít).
+    4. **Dò tìm Bản sao (Duplicates):** Quét toàn ma trận để tìm ra số lượng các bản ghi giống hệt nhau 100% ở mọi cột.
+
+### Phân đoạn 2: Dọn dẹp Cơ bản Cấu trúc Bảng
+Nhằm làm nhẹ bộ nhớ và ngăn chặn các sai lệch trong tính toán thống kê cơ bản.
+*   **Chi tiết hành động thực thi:**
+    1. **Tiêu diệt Cột rác hệ thống:** Hệ thống dò tìm cột mang tên `Unnamed: 0` (đây là cột đếm số thứ tự sinh ra do lỗi lưu trữ index của file CSV trước đó). Khi phát hiện, lệnh gỡ bỏ (drop) được kích hoạt để xóa vĩnh viễn cột này khỏi trục dữ liệu.
+    2. **Loại bỏ Tin rao trùng lặp:** Hệ thống thực thi quét đối chiếu chéo. Khi phát hiện từ 2 dòng dữ liệu trở lên có thông tin giống hệt nhau (trùng cả giá, diện tích, vị trí...), nó sẽ chỉ giữ lại dòng đầu tiên và xóa toàn bộ các dòng copy. Hành động này triệt tiêu nguy cơ thiên vị (bias) khi tính mức giá trung bình của một khu vực.
+
+### Phân đoạn 3: Đồng nhất tính Nhất quán của Dữ liệu (Data Consistency)
+Bước này can thiệp sâu vào từng ô dữ liệu để gọt giũa các lỗi do con người gõ phím sai.
+*   **Chi tiết hành động thực thi với Dữ liệu Chữ (Văn bản):**
+    1. Xây dựng một quy trình chuẩn hóa 3 lớp và áp dụng quét qua các cột `Quận`, `Loại hình nhà ở`, `Giấy tờ pháp lý`.
+    2. **Lớp 1 (Chuẩn hóa Bảng mã):** Ép toàn bộ các chuỗi ký tự về chuẩn Unicode NFC. Hành động này nối các ký tự tiếng Việt bị đứt gãy (do gõ bằng các bộ gõ khác nhau) về chung một chuẩn, chống lỗi vỡ font chữ.
+    3. **Lớp 2 (Đồng nhất Viết thường):** Ép toàn bộ các chữ cái (kể cả chữ in hoa) thành chữ viết thường (lowercase). Tránh việc "CẦU GIẤY" và "cầu giấy" bị đếm thành 2 quận.
+    4. **Lớp 3 (Gọt khoảng trắng):** Cắt bỏ toàn bộ các dấu cách (space) vô tình bị thừa ở đầu và cuối chuỗi văn bản.
+*   **Chi tiết hành động thực thi với Dữ liệu Số (Giá, Diện tích):**
+    1. **Bóc tách:** Xóa bỏ hoàn toàn các chuỗi ký tự đi kèm như "triệu/m2", "triệu/m²" ra khỏi cột Giá. 
+    2. **Chuẩn hóa hệ thập phân:** Tìm kiếm toàn bộ các dấu phẩy (`,`) và thay thế bằng dấu chấm (`.`) để tuân thủ đúng chuẩn định dạng số thập phân quốc tế.
+    3. **Ép kiểu:** Sau khi đã gọt sạch chữ, hệ thống bắt buộc ép định dạng cột đó từ Văn bản sang Số thực (Float). Bất kỳ cụm từ nào quá lộn xộn không thể ép ra số sẽ bị cưỡng chế biến thành ô trống (`NaN`).
+
+### Phân đoạn 4: Chiến lược Xử lý Dữ liệu Khuyết thiếu (Missing Imputation)
+Tuyệt đối không điền bừa bãi. Hệ thống áp dụng 2 chiến lược song song tùy thuộc vào bản chất của cột dữ liệu:
+*   **Chi tiết hành động thực thi (Chiến lược 1 - Cắt bỏ):** Áp dụng nghiêm ngặt cho 2 cột sinh tử là `Giá` và `Diện tích`. Hệ thống quét 2 cột này, hễ phát hiện ô nào là `NaN`, lập tức xóa bỏ hoàn toàn dòng bản ghi đó. Vì tự suy đoán (bịa) ra giá nhà sẽ phá hủy hoàn toàn độ tin cậy của báo cáo phân tích.
+*   **Chi tiết hành động thực thi (Chiến lược 2 - Tạo Cờ hiệu):** Áp dụng cho cột `Số tầng`. Thực tế, một mảnh đất nền không có nhà thì sẽ không có số tầng. Việc thiếu dữ liệu lúc này mang một ý nghĩa đặc biệt. Do đó, hệ thống không xóa dòng, mà sinh ra một cột Cờ hiệu mới mang tên `Thieu_So_Tang`. Hệ thống sẽ điền số `1` nếu nhà đó khuyết số tầng, và điền số `0` nếu nhà đó có tầng.
+
+### Phân đoạn 5: Xử lý Giá trị Ngoại lệ (Outliers)
+Ngoại lệ là những tin đăng "ảo" phá hoại thị trường (Ví dụ: nhà 10m2 nhưng rao bán 100 tỷ).
+*   **Chi tiết hành động thực thi:**
+    1. **Đo lường bằng IQR:** Hệ thống tính toán điểm phân vị 25% và 75% của cột Giá, qua đó tìm ra "vùng phổ biến nhất" của thị trường. Từ đó, dùng công thức thống kê nội suy ra một mức **Giá Trần** (Upper bound) cao nhất có thể chấp nhận được.
+    2. **Kỹ thuật Cắt ngọn (Winsorization/Clipping):** Thay vì xóa bỏ các căn nhà "tin ảo" này làm thất thoát lượng lớn dữ liệu, hệ thống dùng thuật toán quét dọc cột Giá. Bất kỳ căn nhà nào có giá vọt qua Mức Giá Trần, nó sẽ bị "ép" (ghì xuống) bằng đúng với Mức Giá Trần đó. Điều này giúp triệt tiêu sự vô lý của "tin ảo" nhưng vẫn giữ lại được dòng dữ liệu để phân tích các yếu tố khác (như diện tích, vị trí).
+
+### Phân đoạn 6: Đóng gói Pipeline và Số hóa Dữ liệu
+Bước can thiệp cuối cùng nhằm biến hóa dữ liệu sao cho các công cụ tính toán phức tạp nhất có thể hấp thụ được.
+*   **Chi tiết hành động thực thi:**
+    1. **Khởi tạo Dây chuyền (Pipeline):** Hệ thống tạo ra một luồng xử lý tự động (Scikit-Learn Pipeline) để đảm bảo dữ liệu không bị rò rỉ.
+    2. **Với các cột dạng Số:** Hệ thống tự động tìm các ô còn trống sót lại và điền bằng giá trị Trung vị (Median). Sau đó, áp dụng thuật toán `RobustScaler` để kéo giãn/thu hẹp các con số siêu to (tiền tỷ) và siêu nhỏ (số tầng) về chung một hệ quy chiếu tỷ lệ chuẩn mực.
+    3. **Với các cột dạng Chữ:** Hệ thống tự điền chữ "khong_ro" vào các ô trống. Sau đó, do các công cụ phân tích không biết đọc chữ "Quận Cầu Giấy", hệ thống áp dụng kỹ thuật `One-Hot Encoding` để đập vỡ cột Quận thành hàng chục cột nhỏ chứa mã nhị phân (chỉ có số 0 và 1).
 
 ---
-
-## SLIDE 3: BƯỚC 1.1 - LÝ THUYẾT: KIỂM TOÁN DỮ LIỆU
-*   **Chi tiết vấn đề:** Khi nhận được một bộ dữ liệu lớn gồm hàng chục ngàn dòng, ta không thể mở Excel ra xem bằng mắt thường. 
-*   **Giải pháp:** Ta cần định nghĩa một hàm Python đóng vai trò như "máy chụp X-Quang" để quét toàn bộ hệ thống dữ liệu chỉ trong 1 giây, từ đó chỉ ra những "căn bệnh" đang tồn tại.
-
----
-
-## SLIDE 4: BƯỚC 1.2 - THỰC THI: CHẠY LỆNH KIỂM TOÁN
-*   **Ảnh Code minh họa:**
-```python
-# Đọc file dữ liệu thô (định dạng utf-8 để đọc tiếng Việt)
-df = pd.read_csv("data/raw/bds_raw_hanoi_ultimate.csv", encoding='utf-8')
-
-# 1. Kích thước (Shape): Bảng dữ liệu có bao nhiêu dòng, bao nhiêu cột?
-print(df.shape) 
-
-# 2. Kiểu dữ liệu (Info): Cột 'Giá' đang là Chữ hay Số?
-df.info() 
-
-# 3. Đếm ô trống (Isna): Cột nào bị người dùng bỏ trống nhiều nhất?
-print(df.isna().sum()) 
-
-# 4. Đếm trùng lặp (Duplicated): Có bao nhiêu tin rao bán bị copy giống hệt nhau?
-print(df.duplicated().sum())
-```
-
----
-
-## SLIDE 5: BƯỚC 2.1 - LOẠI BỎ CỘT RÁC HỆ THỐNG
-*   **Phân tích chuyên sâu:** Quá trình lưu file thô thường tự động sinh ra một cột đếm số thứ tự có tên là `Unnamed: 0`. Cột này không mang bất kỳ thông tin nào về ngôi nhà, giữ lại chỉ làm nặng quá trình tính toán.
-*   **Ảnh Code minh họa:**
-```python
-# Kiểm tra nếu tồn tại cột rác 'Unnamed: 0' thì sử dụng lệnh drop để xóa sạch
-if 'Unnamed: 0' in df.columns:
-    df = df.drop(columns=['Unnamed: 0'])
-```
-
----
-
-## SLIDE 6: BƯỚC 2.2 - XÓA BẢN GHI TRÙNG LẶP (DUPLICATE)
-*   **Phân tích chuyên sâu:** Một môi giới có thể đăng 1 căn nhà lên nhiều trang khác nhau. Nếu phân tích trên dữ liệu này, việc tính "Mức giá trung bình của 1 quận" sẽ bị kéo lệch hoàn toàn về phía căn nhà bị lặp đó.
-*   **Ảnh Code minh họa:**
-```python
-# Lệnh drop_duplicates tự động quét và so sánh từng chữ của tất cả các cột.
-# Nếu phát hiện 2 dòng giống hệt nhau 100%, nó sẽ xóa bản sao và giữ lại 1 bản gốc.
-df = df.drop_duplicates()
-```
-
----
-
-## SLIDE 7: BƯỚC 3.1 - VẤN ĐỀ CỦA DỮ LIỆU CHỮ (TEXT)
-*   **Chi tiết khó khăn:** Máy tính rất máy móc. Dữ liệu gõ tay từ người dùng sẽ gây ra 3 lỗi khiến hệ thống không thể gom nhóm (Groupby):
-    1. **Lỗi viết hoa/thường:** "Cầu Giấy", "CẦU GIẤY", và "cầu giấy" bị đếm thành 3 quận.
-    2. **Lỗi khoảng trắng:** Vô tình bấm phím cách " Cầu Giấy ".
-    3. **Lỗi bảng mã:** Cùng một chữ nhưng gõ bằng chuẩn Unicode khác nhau sẽ bị tách rời dấu (Cầu Giấy).
-
----
-
-## SLIDE 8: BƯỚC 3.2 - HÀM CHUẨN HÓA VĂN BẢN (NORMALIZATION)
-*   **Mục tiêu:** Viết một hàm Python duy nhất để giải quyết dứt điểm 3 lỗi ở Slide 7.
-*   **Ảnh Code minh họa:**
-```python
-import unicodedata
-
-def normalize_vn(text):
-    if pd.isna(text): return text # Bỏ qua nếu ô bị trống
-    
-    text = str(text) # Ép về dạng chuỗi văn bản
-    
-    # 1. Ép về chuẩn Unicode NFC (Sửa dứt điểm lỗi font chữ tiếng Việt)
-    text = unicodedata.normalize('NFC', text) 
-    
-    # 2. lower(): Ép thành chữ thường 100%
-    # 3. strip(): Cắt gọt khoảng trắng thừa ở 2 đầu
-    return text.lower().strip()
-```
-
----
-
-## SLIDE 9: BƯỚC 3.3 - ÁP DỤNG CHUẨN HÓA VĂN BẢN
-*   **Chi tiết thực thi:** Thay vì sửa tay từng dòng Excel, ta dùng lệnh `.apply()` của Pandas để chạy hàm chuẩn hóa lướt qua hàng ngàn dòng chỉ trong 1 giây.
-*   **Ảnh Code minh họa:**
-```python
-# Áp dụng hàm normalize_vn lên tất cả các cột chứa phân loại (văn bản)
-df['Quận'] = df['Quận'].apply(normalize_vn)
-df['Loại hình nhà ở'] = df['Loại hình nhà ở'].apply(normalize_vn)
-df['Giấy tờ pháp lý'] = df['Giấy tờ pháp lý'].apply(normalize_vn)
-```
-
----
-
-## SLIDE 10: BƯỚC 3.4 - BÓC TÁCH CON SỐ TỪ CHUỖI (EXTRACTION)
-*   **Phân tích chuyên sâu:** Phần mềm không thể tính toán cộng trừ trên một cụm từ như `2,5 triệu/m2`. Bắt buộc phải bóc tách lấy đúng con số `2.5`. Hơn nữa, chuẩn quốc tế dùng dấu chấm (`.`) cho số thập phân, ta phải đồng bộ hóa.
-*   **Ảnh Code minh họa:**
-```python
-def clean_price(x):
-    if pd.isna(x): return np.nan
-    
-    # 1. replace: Xóa bỏ chữ "triệu/m2"
-    # 2. replace: Đổi dấu phẩy thành dấu chấm để chuẩn hóa thập phân
-    s = str(x).lower().replace('triệu/m²', '').replace('triệu/m2', '').replace(',', '.').strip()
-    
-    # 3. float(): Ép chuỗi văn bản thành Số Thực (có phần thập phân) để tính toán
-    try: return float(s) 
-    except: return np.nan
-
-df['Giá_m2_trieu'] = df['Giá/m2'].apply(clean_price)
-```
-
----
-
-## SLIDE 11: BƯỚC 4.1 - HAI CHIẾN LƯỢC XỬ LÝ KHUYẾT THIẾU
-*   **Chiến lược 1 (Cắt bỏ hoàn toàn):** Áp dụng cho thông tin Cốt lõi (Giá, Diện tích). Nếu người bán không nhập, ta **bắt buộc phải xóa bỏ dòng đó**. Tuyệt đối không được tự suy đoán hay "bịa" ra giá nhà vì sẽ phá hỏng tính trung thực của báo cáo.
-*   **Chiến lược 2 (Tạo Cờ hiệu):** Áp dụng cho thông tin Phụ (Ví dụ: Số tầng). Một mảnh đất nền sẽ tự nhiên không có số tầng. Ta không xóa để tránh phí dữ liệu, mà sẽ **Tạo một cờ hiệu** báo cáo "Nhà này không có tầng".
-
----
-
-## SLIDE 12: BƯỚC 4.2 - THỰC THI: XÓA BỎ & ĐÁNH CỜ HIỆU
-*   **Mục tiêu:** Dịch 2 chiến lược từ Slide 11 thành mã lệnh can thiệp.
-*   **Ảnh Code minh họa:**
-```python
-# 1. CHIẾN LƯỢC XÓA BỎ (DROP)
-# Lệnh dropna sẽ quét, thấy ô nào là NaN (trống) ở Giá/Diện tích thì xóa cả dòng đó.
-df = df.dropna(subset=['Giá_m2_trieu', 'Diện tích m2'])
-
-# 2. CHIẾN LƯỢC TẠO CỜ HIỆU (INDICATOR)
-# isna(): Kiểm tra ô trống. astype(int): Biến True/False thành 1 và 0.
-# Tạo ra cột mới chứa số 1 (Nếu thiếu số tầng) và 0 (Nếu có số tầng)
-df['Thieu_So_Tang'] = df['Số tầng'].isna().astype(int)
-```
-
----
-
-## SLIDE 13: BƯỚC 5.1 - LÝ THUYẾT GIÁ TRỊ NGOẠI LỆ (OUTLIERS)
-*   **Phân tích chuyên sâu:** "Tin ảo" (nhà hẻm 10m2 bán 100 tỷ) là những điểm Ngoại lệ (Outliers). Nó kéo mức giá trung bình của cả quận vọt lên sai sự thật.
-*   **Cách trị (Quy tắc IQR):** 
-    1. Chia dữ liệu làm 4 phần. Tìm mức phân vị 25% (Q1) và 75% (Q3) để lấy ra phần đông phổ biến nhất ở giữa.
-    2. Dùng công thức thống kê tính ra một **Mức trần**. Giá nào vượt qua mức này đều bị coi là bất thường.
-
----
-
-## SLIDE 14: BƯỚC 5.2 - KỸ THUẬT "CẮT NGỌN" (CLIPPING) NGOẠI LỆ
-*   **Mục tiêu:** Thay vì xóa bỏ (làm thất thoát lượng lớn dữ liệu), ta dùng kỹ thuật "Cắt ngọn". Tức là ép mọi căn nhà siêu đắt lùi về bằng đúng với Mức trần vừa tính toán được.
-*   **Ảnh Code minh họa:**
-```python
-# 1. Tìm Mức trần và Mức sàn của thị trường
-Q1 = df['Giá_m2_trieu'].quantile(0.25)
-Q3 = df['Giá_m2_trieu'].quantile(0.75)
-IQR = Q3 - Q1
-upper_bound = Q3 + 1.5 * IQR  # Tính ra Mức trần tối đa
-
-# 2. Lệnh clip(): Lưỡi dao cắt ngọn
-# Ép mọi giá trị lớn hơn upper_bound xuống bằng đúng upper_bound
-df['Giá_m2_trieu'] = df['Giá_m2_trieu'].clip(lower=0, upper=upper_bound)
-```
-
----
-
-## SLIDE 15: BƯỚC 6 - ĐÓNG GÓI BẰNG PIPELINE (CHUẨN HÓA ĐỊNH DẠNG)
-*   **Phân tích chuyên sâu:** Để đưa vào các phần mềm tính toán và trực quan hóa mạnh mẽ nhất, dữ liệu cần 1 bước "số hóa" cuối cùng.
-    *   *Scale:* Đưa các con số siêu lớn (tiền tỷ) và siêu nhỏ (số tầng) về chung một tỷ lệ.
-    *   *Encode:* Biến toàn bộ chữ (VD: Quận Cầu Giấy) thành mã nhị phân 0 và 1.
-*   **Ảnh Code minh họa:**
-```python
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, RobustScaler
-from sklearn.impute import SimpleImputer
-
-# Dây chuyền cho cột SỐ: Điền trung vị -> Chuẩn hóa thang đo tỷ lệ
-num_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='median')),
-    ('scaler', RobustScaler())
-])
-
-# Dây chuyền cho cột CHỮ: Điền 'khong_ro' -> Mã hóa thành dãy số 0 và 1
-cat_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='constant', fill_value='khong_ro')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore', drop='first'))
-])
-```
+**TỔNG KẾT:** 
+Sau khi đi qua 6 phân đoạn kỹ thuật trên, bộ dữ liệu đã được gột rửa mọi tạp chất, đồng nhất 100% về cấu trúc và định dạng. Không một giá trị ảo hay nhiễu loạn nào còn tồn tại, dữ liệu hiện tại là một "mỏ vàng" sạch sẽ, sẵn sàng để khai phá các báo cáo phân tích chính xác nhất.

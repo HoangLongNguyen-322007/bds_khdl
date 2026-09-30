@@ -46,7 +46,7 @@ def clean_rooms(x):
 
 def run_pipeline():
     # 1. Load data
-    raw_file = "data/raw/bds_raw_hanoi_ultimate.csv"
+    raw_file = "data/raw/raw.csv"
     if not os.path.exists(raw_file):
         print(f"Không tìm thấy dữ liệu thô tại {raw_file}!")
         return
@@ -125,7 +125,7 @@ def run_pipeline():
     print(f"Kích thước ma trận đặc trưng sau Pipeline: {X_processed.shape}")
     
     os.makedirs("data/processed", exist_ok=True)
-    out_file = "data/processed/hanoi_housing_processed.csv"
+    out_file = "data/processed/clean.csv"
     df.to_csv(out_file, index=False, encoding='utf-8-sig')
     print(f"Hoàn thành! Đã lưu dữ liệu sạch ({len(df)} dòng) tại: {out_file}")
 
