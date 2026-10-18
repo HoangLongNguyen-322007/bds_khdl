@@ -31,10 +31,10 @@
    - 5.4. Biểu đồ 4: Phân bố đơn giá 12 quận huyện trọng điểm (Boxplot theo Trung vị)
    - 5.5. Biểu đồ 5: Đánh giá & So sánh hiệu năng 4 mô hình hồi quy (Model Comparison)
    - 5.6. Biểu đồ 6: Tầm quan trọng của các yếu tố định giá (Feature Importance)
-6. [CHƯƠNG 6: THỬ NGHIỆM MÔ HÌNH HÓA & TRỢ LÝ ĐỊNH GIÁ AI (TUẦN 7 - 8)](#chương-6-thử-nghiệm-mô-hình-hóa--trợ-lý-định-giá-ai-tuần-7---8)
+6. [CHƯƠNG 6: THỬ NGHIỆM MÔ HÌNH HÓA HỒI QUY & HỌC MÁY ENSEMBLE (TUẦN 10 - 11)](#chương-6-thử-nghiệm-mô-hình-hóa-hồi-quy--học-máy-ensemble-tuần-10---11)
    - 6.1. Thiết lập phân chia tập huấn luyện và kiểm thử (Train/Test Split 80/20)
    - 6.2. Bảng đối đầu hiệu năng giữa các thuật toán học máy
-   - 6.3. Trợ lý AI định giá nhà tự động ứng dụng thực tế
+   - 6.3. Đóng gói Pipeline Suy Diễn & Khả Năng Tái Lập (Inference Pipeline & Reproducibility)
 7. [CHƯƠNG 7: THỐNG KÊ SUY LUẬN & KIỂM ĐỊNH GIẢ THUYẾT (TUẦN 9)](#chương-7-thống-kê-suy-luận--kiểm-định-giả-thuyết-tuần-9)
    - 7.1. Bản chất Thống kê suy luận & Nguyên lý kiểm định giả thuyết khoa học
    - 7.2. Kiểm định Giả thuyết Nội đô vs Ngoại thành: Welch's t-test & Mann-Whitney U
@@ -483,7 +483,7 @@ Biểu đồ thanh ngang hiển thị mức độ đóng góp tương đối (Fe
 
 ---
 
-## CHƯƠNG 6: THỬ NGHIỆM MÔ HÌNH HÓA & TRỢ LÝ ĐỊNH GIÁ AI (TUẦN 7 - 8)
+## CHƯƠNG 6: THỬ NGHIỆM MÔ HÌNH HÓA HỒI QUY & HỌC MÁY ENSEMBLE (TUẦN 10 - 11)
 
 ### 6.1. Thiết lập phân chia tập huấn luyện và kiểm thử (Train/Test Split 80/20)
 * Toàn bộ 37.402 bản ghi dữ liệu sạch thuộc chu kỳ 18 tháng gần nhất được phân chia theo tỷ lệ chuẩn 80/20 với hạt giống ngẫu nhiên cố định (`random_state=42`) để đảm bảo tính tái lập kết quả:
@@ -501,12 +501,13 @@ Biểu đồ thanh ngang hiển thị mức độ đóng góp tương đối (Fe
 
 * Mô hình xuất sắc nhất **Gradient Boosting Pipeline** đã được xuất và lưu trữ an toàn tại: [`house_price_model.pkl`](file:///Users/longnguyen/Documents/bds_khdl/house_price_model.pkl).
 
-### 6.3. Trợ lý AI định giá nhà tự động ứng dụng thực tế
-Hệ thống đã tích hợp mô hình vào công cụ trợ lý dòng lệnh tại [`src/predict_bot.py`](file:///Users/longnguyen/Documents/bds_khdl/src/predict_bot.py). Công cụ cho phép người dùng nhập các thuộc tính cơ bản của bất động sản và nhận về kết quả định giá tự động trong vòng dưới 1 giây.
+### 6.3. Đóng gói Pipeline Suy Diễn & Khả Năng Tái Lập (Inference Pipeline & Reproducibility)
+Toàn bộ luồng tiền xử lý (One-Hot, Imputation) và mô hình học máy quán quân Gradient Boosting được đóng gói thành một Scikit-Learn Pipeline duy nhất (`house_price_model.pkl`). 
 
-* **Kịch bản thẩm định thử nghiệm thực tế**:
+Hàm `pipeline.predict()` cho phép đưa trực tiếp một bản ghi dữ liệu thô vào quy trình và nhận về giá trị dự báo trong thời gian dưới 0.05 giây:
+* **Thử nghiệm suy diễn (Inference Validation)**:
   - Thông số đầu vào: Nhà diện tích **$50 m^2$**, địa bàn **Quận Cầu Giấy**, xây dựng **3 tầng**, bố trí **3 phòng ngủ**, tình trạng **đã có sổ đỏ**.
-  - **Kết quả AI tính toán**:
+  - **Kết quả mô hình tính toán**:
     - Đơn giá dự báo trung bình: $\approx \mathbf{90.3 \text{ Triệu VNĐ/m²}}$.
     - Tổng giá trị tài sản ước tính: $\approx \mathbf{4.51 \text{ Tỷ VNĐ}}$.
     - Khoảng giá khuyến nghị tham chiếu: $\mathbf{4.15 - 4.88 \text{ Tỷ VNĐ}}$.
@@ -833,7 +834,7 @@ Khi đưa nhiều biến số vào mô hình, nguy cơ **Đa cộng tuyến (Mul
 
 | Tuần Triển Khai | Trạng Thái | Nhiệm Vụ Trọng Tâm | Kế Hoạch Triển Khai Kỹ Thuật Chi Tiết |
 | :---: | :---: | :--- | :--- |
-| **Tuần 1 - 8** |  **Hoàn thành** | **Thu thập, Làm sạch, Kỹ nghệ đặc trưng, EDA & Midterm** | Đã hoàn thành 100% tệp dữ liệu sạch 37.402 bản ghi, bộ 6 biểu đồ, Baseline Gradient Boosting và bot dự đoán giá CLI. |
+| **Tuần 1 - 8** |  **Hoàn thành** | **Thu thập, Làm sạch, Kỹ nghệ đặc trưng, EDA & Midterm** | Đã hoàn thành 100% tệp dữ liệu sạch 37.402 bản ghi, bộ 6 biểu đồ, và Pipeline Gradient Boosting hoàn chỉnh. |
 | **Tuần 9** |  **Hoàn thành** | **Thống Kê Suy Luận & Kiểm Định Giả Thuyết** | Đã chạy xong Welch's t-test, Mann-Whitney U, ANOVA, Tukey's HSD 66 cặp, Bảng khoảng tin cậy 95% CI và Biểu đồ 07. |
 | **Tuần 10** |  **Hoàn thành** | **Chẩn Đoán Hồi Quy LINE & Regularisation** | Đã chẩn đoán 4 giả định LINE, kiểm tra Breusch-Pagan, Durbin-Watson, biến đổi Logarit thành công, đối đầu Ridge vs Lasso và Biểu đồ 08, 09. |
 | **Tuần 11** | ⏳ **Sắp tới** | **Phân Loại Phân Khúc & XAI (SHAP Values)** | - Huấn luyện mô hình phân loại đa lớp (Multi-class Classification) cho 5 phân khúc giá tài sản.<br>- Triển khai các thuật toán tiên tiến **XGBoost** và **LightGBM** kết hợp kiểm định chéo K-Fold Cross-Validation.<br>- Tích hợp công cụ **SHAP (Shapley Additive exPlanations)**: Vẽ biểu đồ Force Plot & Summary Plot để bóc tách đóng góp của từng yếu tố cho mỗi dự báo. |

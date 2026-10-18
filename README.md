@@ -1,108 +1,113 @@
-# 🏙️ BẢN THIẾT KẾ KIẾN TRÚC TỔNG THỂ (MASTER BLUEPRINT)
-**Dự án: Hệ thống Phân tích Không gian và Dự đoán Giá Bất động sản tại Hà Nội**
-
-*(Tài liệu này đóng vai trò là "Bản vẽ kỹ thuật" chi tiết nhất, bóc tách toàn bộ các thành phần của hệ thống từ Database, luồng Dữ liệu, thuật toán ML cho đến Kiến trúc Web để đội ngũ bám sát định dạng trong quá trình phát triển).*
-
----
-
-## 🏗️ 1. KIẾN TRÚC HỆ THỐNG PHẦN MỀM (SYSTEM ARCHITECTURE)
-Hệ thống được thiết kế theo mô hình **Microservices Phân tán**, đảm bảo việc xử lý dữ liệu nặng (ML) không làm sập giao diện người dùng (Frontend).
-
-### 1.1. Tầng Cơ sở dữ liệu (Database Layer)
-*   **Công nghệ:** Supabase (PostgreSQL).
-*   **Lõi mở rộng:** Cài đặt thêm Extension **PostGIS**.
-*   **Chức năng chuyên sâu:** PostGIS cho phép lưu tọa độ dưới định dạng không gian (Geometry Point). Thay vì query `SELECT * FROM bds WHERE district='Cau Giay'`, hệ thống có thể query không gian phức tạp: *"Lấy tất cả căn hộ nằm trong bán kính 2km từ Hồ Gươm"* vô cùng nhanh chóng.
-
-### 1.2. Tầng Trí tuệ Nhân tạo (Machine Learning Layer)
-*   **Công nghệ:** Google Colab (Môi trường phát triển) + Scikit-Learn / XGBoost (Thư viện lõi).
-*   **Chức năng chuyên sâu:** Nơi kỹ sư dữ liệu load dữ liệu từ DB, chạy thực nghiệm (Experiments), huấn luyện mô hình. Mô hình tốt nhất sẽ được xuất ra file nhị phân nén dạng `model.pkl` hoặc `model.joblib`.
-
-### 1.3. Tầng Xử lý Logic (Backend API Layer)
-*   **Công nghệ:** Python **FastAPI** (Triển khai trên Cloud Render / Railway).
-*   **Chức năng chuyên sâu:** Là cầu nối trung gian. Nó chứa file `model.pkl`. 
-*   **Thiết kế API Endpoints (Giao thức giao tiếp):**
-    *   `GET /api/v1/map-data`: Trả về tọa độ hàng ngàn căn nhà để Frontend vẽ lên bản đồ.
-    *   `GET /api/v1/stats`: Trả về dữ liệu thống kê (giá trung bình, số lượng) khi user click vào một quận.
-    *   `POST /api/v1/predict`: Nhận cục payload (Ví dụ: `{dien_tich: 70, quan: "Cầu Giấy", so_tang: 10}`), đưa vào mô hình ML và trả về số tiền dự đoán `2.5 tỷ`.
-
-### 1.4. Tầng Giao diện Người dùng (Frontend Layer)
-*   **Công nghệ:** ReactJS (TypeScript) + TailwindCSS + Leaflet Map (Triển khai trên Vercel).
-*   **Chức năng chuyên sâu:** Nhận dữ liệu từ Backend và render lên màn hình. Leaflet Map chịu trách nhiệm vẽ các điểm màu (Heatmap) theo tọa độ. TailwindCSS chịu trách nhiệm thiết kế giao diện Glassmorphism hiện đại, mượt mà.
+# 🏙️ HỆ THỐNG PHÂN TÍCH KHÔNG GIAN & DỰ ĐOÁN GIÁ BẤT ĐỘNG SẢN HÀ NỘI
+> **Học phần:** Khoa Học Dữ Liệu (INFO3020)  
+> **Quy mô dữ liệu:** 99.998 tin rao thu thập $\rightarrow$ 37.402 bất động sản chuẩn hóa 18 tháng gần nhất (2025 - 2026)  
+> **Mô hình vô địch:** Gradient Boosting Regressor ($R^2 = 0.4390$, $\text{MAE} = 26.07\text{ triệu/m}^2$)
 
 ---
 
-## 🗄️ 2. LUỒNG DỮ LIỆU & FEATURE ENGINEERING (DATA PIPELINE)
-Tuân thủ mô hình chuẩn **Medallion Architecture** (Bronze $\rightarrow$ Silver $\rightarrow$ Gold) để dữ liệu không bao giờ bị rác.
-
-### 2.1. Bronze Layer (Dữ liệu thô - Raw Data)
-*   Web Scraping thu về file `raw.csv`. Dữ liệu cực bẩn, sai chính tả, chứa HTML tags. Tuyệt đối không phân tích trên tập này.
-
-### 2.2. Silver Layer (Dữ liệu đã gột rửa - Processed Data)
-*   Thực thi luồng làm sạch tự động (như file `pipeline_hanoi.py`).
-*   Khử nhiễu, điền missing values, ép kiểu số, gọt rác Unicode.
-
-### 2.3. Gold Layer (Dữ liệu Đặc trưng - Feature Engineered Data)
-Đây là giai đoạn "chế biến" tạo ra giá trị gia tăng cao nhất cho mô hình AI:
-*   **Tính toán tọa độ (Geocoding):** Gửi tên đường/quận lên Google API để lấy Kinh độ/Vĩ độ.
-*   **Đặc trưng khoảng cách (Distance Features):** Dùng công thức Haversine tính toán khoảng cách đường chim bay từ căn nhà đến: `Trung_tam_Ho_Guom`, `Ben_tau_Metro`, `Dai_hoc_Quoc_Gia`.
-*   **Đặc trưng thống kê chéo (Target Encoding):** Tạo ra các cột như `Gia_Trung_Binh_Cua_Quan_Do`, `Gia_Trung_Binh_Cua_Khu_Do_Thi_Do` giúp mô hình AI có một hệ quy chiếu "giá nền" của khu vực.
-
----
-
-## 🤖 3. CHIẾN LƯỢC HUẤN LUYỆN MÔ HÌNH (ML BLUEPRINT)
-*   **Bài toán:** Hồi quy (Regression) - Dự đoán một con số liên tục (Giá tiền).
-*   **Thuật toán thi đấu:** 
-    1. *Linear Regression:* Dùng làm Baseline (Mức chuẩn cơ sở).
-    2. *Random Forest:* Bắt đầu học được các quy luật phi tuyến tính.
-    3. *XGBoost / LightGBM:* "Trùm cuối" cho dữ liệu bảng (Tabular Data). Xử lý cực tốt các biến phân loại (Categorical) như tên Quận, tên Phường, tên Khu Đô Thị.
-*   **Đánh giá mô hình (Metrics):**
-    *   **RMSE (Root Mean Square Error):** Phạt nặng các dự đoán sai lệch quá lớn.
-    *   **MAE (Mean Absolute Error):** Cho biết trung bình mô hình dự đoán lệch bao nhiêu tiền (Ví dụ: Lệch 150 triệu VNĐ/căn).
-    *   **R² (R-Squared):** Đo lường xem mô hình giải thích được bao nhiêu % sự biến động của thị trường.
-*   **Giải Thích Mô Hình (XAI - Explainable AI):** Không được thiết kế theo kiểu "Hộp đen" (Blackbox). Bắt buộc phải tích hợp thư viện **SHAP**. Khi AI phán căn nhà giá 3 Tỷ, SHAP phải bóc tách được: Khởi điểm là 2 Tỷ, cộng thêm 800 triệu vì có nội thất, cộng thêm 200 triệu vì nằm gần bến Metro.
+## 📌 1. TỔNG QUAN DỰ ÁN
+Dự án tập trung giải quyết bài toán **bất đối xứng thông tin** và **định giá bất động sản tự động (Automated Valuation Model - AVM)** trên địa bàn Thủ đô Hà Nội. Thông qua quy trình Khoa học Dữ liệu chuẩn mực từ Tuần 1 đến Tuần 10, dự án đã:
+1. **Thu thập & Chuẩn hóa dữ liệu lớn**: Xử lý 99.998 tin rao thô từ các nền tảng BĐS uy tín, sàng lọc qua phễu kỹ thuật 6 bước để giữ lại 37.402 bản ghi sạch đại diện cho 12 quận/huyện trọng điểm.
+2. **Kỹ nghệ đặc trưng đa chiều**: Mở rộng từ 12 trường dữ liệu ban đầu thành 38 biến phái sinh sâu sắc (tỷ lệ mặt tiền/chiều sâu, tổng diện tích sàn, cờ thương mại, khoảng cách tâm hồ Hoàn Kiếm, phân vùng quy hoạch).
+3. **Phân tích khám phá (EDA) & Trực quan hóa**: Xây dựng 9 biểu đồ chuyên sâu bóc tách phân phối lệch phải (Log-normal), ma trận tương quan đa biến, phân tầng giá 12 quận và hiện tượng phương sai hình phễu.
+4. **Thống kê suy luận (Inferential Statistics)**: 
+   - Kiểm định **Welch's t-test** khẳng định giá Nội đô đắt hơn Ngoại thành $32.04\text{ tr/m}^2$ ($+39.0\%$, $p < 10^{-16}$, Cohen's $d = 0.610$).
+   - Phân tích phương sai **One-Way ANOVA** ($F = 368.11$) kết hợp kiểm định hậu nghiệm **Tukey's HSD** phát hiện **9 cặp quận "song sinh giá"** (điển hình: Cầu Giấy = Ba Đình = Tây Hồ với $p > 0.05$).
+   - Ước lượng **Khoảng tin cậy 95% (95% CI)** cho đơn giá kỳ vọng của từng địa bàn.
+5. **Chẩn đoán hồi quy LINE & Điều chuẩn**:
+   - Vạch trần vi phạm phương sai đồng nhất của OLS gốc qua kiểm định Breusch-Pagan ($BP = 4.417,73$, $p < 0.0001$).
+   - Biến đổi $\log(y)$ nắn chuẩn hoàn hảo phần dư (Skewness từ $+2.18 \rightarrow -0.29$, Kurtosis từ $10.79 \rightarrow 3.72$, giảm sai số MAE xuống $28.35\text{ tr/m}^2$).
+   - Điều chuẩn **Lasso L1** minh chứng tính năng thưa hóa (Sparsity), tự động triệt tiêu các biến diện tích đất và chiều sâu thừa thãi về đúng $0.000$.
+6. **Mô hình học máy & Đóng gói Pipeline**: Huấn luyện đối đầu 5 mô hình (Linear, Ridge, Lasso, Random Forest, Gradient Boosting). Gradient Boosting đạt quán quân hiệu năng và được đóng gói thành Scikit-Learn Pipeline hoàn chỉnh.
 
 ---
 
-## 📁 4. CẤU TRÚC THƯ MỤC CHUẨN (REPOSITORY FORMAT)
-Dự án phải tuân thủ nghiêm ngặt cấu trúc cây thư mục sau đây để đảm bảo tính chuyên nghiệp và dễ bảo trì:
+## 📁 2. CẤU TRÚC THƯ MỤC CHUẨN MỰC
+Toàn bộ dự án tuân thủ nghiêm ngặt nguyên tắc **Dữ liệu thô bất biến (Raw-Immutable Rule)** và tính tái lập 100% (Reproducibility):
 
 ```text
-hanoi-realestate-analytics/
+bds_khdl/
+├── README.md                          # Bản tài liệu kỹ thuật tổng thể (file này)
+├── KIENTHUC_TONG_QUAN.md              # Khung lý thuyết & đề cương học phần INFO3020
+├── BAO_CAO_TIEN_DO_KHDL.md            # Báo cáo tiến độ chi tiết dạng Markdown (Tuần 1 - 10)
+├── BAO_CAO_TIEN_DO_KHDL.docx          # Báo cáo tiến độ chuẩn Word nộp bài (đầy đủ bảng & biểu đồ)
+├── BAO_CAO_TIEN_DO_SLIDES.md          # Kịch bản trình chiếu Slide thuyết trình
+├── BAO_CAO_TIEN_DO_SLIDES.pptx        # Bộ Slide thuyết trình Microsoft PowerPoint chuyên nghiệp
+├── house_price_model.pkl              # Pipeline Gradient Boosting tốt nhất đã được huấn luyện
 │
-├── data/                   # Nơi chứa toàn bộ dữ liệu (Tuyệt đối không push lên Github)
-│   ├── raw/                # Dữ liệu cào nguyên bản (Bronze)
-│   ├── processed/          # Dữ liệu đã làm sạch (Silver)
-│   └── feature/            # Dữ liệu đã thêm tọa độ, khoảng cách (Gold)
+├── data/
+│   ├── raw/raw.csv                    # Dữ liệu gốc thu thập ban đầu (99.998 dòng - Bất biến)
+│   └── processed/clean.csv            # Dữ liệu sạch sau lọc chu kỳ & outlier (37.402 dòng)
 │
-├── notebooks/              # Các file Jupyter (.ipynb) để thử nghiệm
-│   ├── 01_data_audit.ipynb
-│   ├── 02_eda_spatial.ipynb
-│   └── 03_model_training.ipynb
+├── notebooks/
+│   └── bds_khdl_eda_modeling.ipynb    # Jupyter Notebook thực nghiệm từ Tiền xử lý đến Mô hình hóa
 │
-├── src/                    # Mã nguồn chính của luồng xử lý
-│   ├── data_cleaning/      # Chứa pipeline_hanoi.py
-│   ├── feature_engineering/
-│   └── models/             # Chứa code train và file model.pkl
+├── reports/figures/                   # 9 biểu đồ phân giải cao phục vụ báo cáo và thuyết trình
+│   ├── 01_correlation_heatmap.png     # Ma trận tương quan đa biến Pearson
+│   ├── 02_price_distribution.png      # Phân phối tần suất kép Đơn giá & Tổng giá (KDE)
+│   ├── 03_price_vs_area_scatter.png   # Tương quan phân tán Diện tích & Mặt tiền vs Giá bán
+│   ├── 04_price_by_district_boxplot.png # Biểu đồ hộp đơn giá 12 quận xếp theo Trung vị
+│   ├── 05_model_comparison.png        # So sánh hiệu năng đối đầu 4 mô hình học máy
+│   ├── 06_feature_importance.png      # Top 10 đặc trưng chi phối giá trích xuất từ GBDT
+│   ├── 07_confidence_intervals_districts.png # Khoảng tin cậy 95% (95% CI) cho 12 quận/huyện
+│   ├── 08_line_assumptions_diagnostics.png   # Bộ tứ chẩn đoán 4 giả định hồi quy LINE
+│   └── 09_regularization_lasso_vs_ridge.png  # So sánh trọng số điều chuẩn OLS vs Ridge vs Lasso
 │
-├── backend/                # Source code của API Server (FastAPI)
-│   ├── main.py
-│   └── routers/
+├── src/                               # Toàn bộ mã nguồn thực thi đang hoạt động
+│   ├── pipeline_hanoi.py              # Custom Scikit-Learn Transformers & Pipeline tiền xử lý
+│   ├── run_pipeline_eda_modeling.py   # Thực thi Tuần 5 - 8: Làm sạch, EDA, vẽ hình 1-6, train ML
+│   ├── run_week9_week10.py            # Thực thi Tuần 9 - 10: Thống kê suy luận, LINE, hình 7-9
+│   ├── export_report_docx.py          # Script tự động tạo báo cáo Word hoàn chỉnh
+│   └── export_slides_pptx.py          # Script tự động tạo Slide PowerPoint trình chiếu
 │
-├── frontend/               # Source code của giao diện Web (React)
-│   ├── components/         # Các mảnh ghép UI (Map, Charts)
-│   └── pages/
-│
-├── requirements.txt        # Danh sách thư viện Python (Pandas, Sklearn, FastAPI...)
-└── README.md               # Bản thiết kế tổng thể (Chính là file này)
+└── archive/                           # Thư mục lưu trữ mã nguồn cào dữ liệu cũ
+    ├── README.md                      # Ghi chú minh chứng thu thập dữ liệu Tuần 1 - 3
+    └── crawlers/                      # Các script cào web thô ban đầu
 ```
 
 ---
 
-## 🛤️ 5. LỘ TRÌNH THỰC THI CHI TIẾT (MILESTONES)
+## ⚙️ 3. CÀI ĐẶT MÔI TRƯỜNG & HƯỚNG DẪN THỰC THI
 
-*   **Milestone 1 (Data Foundation):** Hoàn thiện 100% việc cào dữ liệu, chạy qua Pipeline làm sạch (file `pipeline_hanoi.py`), lưu vào CSDL Supabase.
-*   **Milestone 2 (Geospatial & EDA):** Chạy API lấy tọa độ cho toàn bộ dữ liệu. Thực hiện vẽ biểu đồ Heatmap đầu tiên trên Jupyter Notebook để thấy luồng nhiệt giá đất Hà Nội.
-*   **Milestone 3 (AI Core):** Xây dựng các đặc trưng khoảng cách. Bỏ dữ liệu vào huấn luyện XGBoost. Chốt được mô hình có MAE thấp nhất và xuất file `model.pkl`.
-*   **Milestone 4 (Backend API):** Code FastAPI load `model.pkl`. Test API bằng Postman đảm bảo gửi request lên lấy được giá trả về dưới 1 giây.
-*   **Milestone 5 (Frontend Map):** Code ReactJS, tích hợp Leaflet vẽ bản đồ. Gắn thanh Filter (lọc theo quận, giá). 
-*   **Milestone 6 (Integration & Release):** Ghép Frontend gọi API Backend. Hoàn thiện bảng Dashboard Thống kê và Form Dự đoán Giá có giải thích SHAP. Deploy lên mạng Internet.
+### 3.1. Kích hoạt môi trường ảo
+```bash
+# Kích hoạt virtualenv (đã tích hợp đầy đủ thư viện trong repo)
+source venv/bin/activate
+```
+
+### 3.2. Chạy toàn bộ luồng xử lý và mô hình hóa
+```bash
+# 1. Chạy tiền xử lý dữ liệu, phân tích EDA và huấn luyện 5 mô hình ML (Tuần 5 - 8)
+python src/run_pipeline_eda_modeling.py
+
+# 2. Chạy thống kê suy luận, kiểm định Welch t-test, ANOVA, LINE diagnostics & Lasso (Tuần 9 - 10)
+python src/run_week9_week10.py
+
+# 3. Xuất báo cáo Word (.docx) và Slide PowerPoint (.pptx)
+python src/export_report_docx.py
+python src/export_slides_pptx.py
+```
+
+---
+
+## 🏆 4. BẢNG HIỆU NĂNG MÔ HÌNH HỌC MÁY (TEST SET: 7.481 BẢN GHI)
+
+| Thuật Toán | $R^2$ Score | MAE (Sai số tuyệt đối) | RMSE | Đánh Giá Thực Tiễn |
+| :--- | :---: | :---: | :---: | :--- |
+| **Linear Regression (Baseline)** | 0.3644 | 28.47 tr/m² | 44.13 tr/m² | Chuẩn cơ sở, chưa nắm bắt tương tác phi tuyến |
+| **Ridge Regression (L2)** | 0.3621 | 28.47 tr/m² | 44.21 tr/m² | Ổn định trọng số, khắc phục đa cộng tuyến |
+| **Lasso Regression (L1)** | 0.3638 | 28.43 tr/m² | 44.17 tr/m² | Triệt tiêu các biến diện tích/chiều sâu thừa về $0.000$ |
+| **Random Forest (50 cây)** | 0.4284 | 26.17 tr/m² | 41.85 tr/m² | Bắt tương tác phi tuyến tốt, giảm 8.1% sai số |
+| **Gradient Boosting (Champion)** | **0.4390** | **26.07 tr/m²** | **41.46 tr/m²** | **QUÁN QUÂN HIỆU NĂNG**: Sai số thấp nhất, tổng thể tối ưu |
+
+---
+
+## 💡 5. CÁC PHÁT HIỆN THỰC TIỄN NỔI BẬT DÀNH CHO THỊ TRƯỜNG
+1. **Quy luật "Vị trí là số 1"**: Cờ nội đô tương quan dương cao nhất ($r = +0.283$), vị trí ngõ hẻm tương quan âm mạnh nhất ($r = -0.279$). Cự ly gần trung tâm chi phối $>36\%$ quyết định định giá của AI.
+2. **Bước nhảy thương mại mặt tiền**: Mặt tiền $\ge 4\text{m}$ kết hợp đường rộng tạo bước nhảy vọt về đơn giá, kéo đường xu hướng OLS từ $88\text{ tr/m}^2$ lên $170\text{ tr/m}^2$.
+3. **Phân tầng giá 3 lớp rõ nét**:
+   - *Tầng 1 (Lõi di sản)*: Cầu Giấy ($105\text{ tr}$), Ba Đình ($104\text{ tr}$), Tây Hồ ($101.9\text{ tr}$), Đống Đa ($100\text{ tr/m}^2$).
+   - *Tầng 2 (Đô thị mở rộng)*: Thanh Xuân ($92.5\text{ tr}$), Hai Bà Trưng ($89.7\text{ tr}$), Nam Từ Liêm ($85.7\text{ tr/m}^2$).
+   - *Tầng 3 (Ven đô & Ngoại thành)*: Bắc Từ Liêm, Hoàng Mai, Long Biên, Hà Đông, Thanh Trì ($60 - 80\text{ tr/m}^2$).
+4. **Cặp quận "song sinh giá"**: Kiểm định Tukey HSD chứng minh không có sự khác biệt thống kê ($p > 0.05$) giữa Ba Đình, Cầu Giấy và Tây Hồ $\rightarrow$ Người mua nhà có thể cân nhắc chuyển đổi tương đương giữa 3 quận này.
+5. **Cứu cánh từ phép biến đổi Logarit**: Mô hình OLS với biến mục tiêu thô vi phạm nghiêm trọng giả định hồi quy (Breusch-Pagan $p < 0.0001$). Việc áp dụng $\log(y)$ đã nắn độ lệch Skewness từ $+2.18$ về $-0.29$ và độ nhọn Kurtosis từ $10.79$ về $3.72$, đảm bảo tính hợp lệ kinh tế lượng.
