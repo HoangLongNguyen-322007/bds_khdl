@@ -77,8 +77,8 @@ PHẦN 7: TỔNG KẾT & KẾ HOẠCH BỨT PHÁ (TUẦN 11 - 12)
 |    quyết định nhất đến giá trị tài sản?                                                            |
 +----------------------------------------------------------------------------------------------------+
 | ❓ 3. CÔNG CỤ ĐỊNH GIÁ TỰ ĐỘNG (Automated Valuation Model - AVM):                                  |
-|    Liệu có thể xây dựng mô hình AI với sai số MAE < 26 triệu/m² để hỗ trợ người dân và ngân hàng    |
-|    ước tính nhanh giá trị nhà trong vòng dưới 1 giây?                                              |
+|    Liệu có thể xây dựng mô hình học máy với độ chính xác cao để hỗ trợ người dân và ngân hàng       |
+|    ước tính nhanh giá trị bất động sản một cách khách quan và tin cậy?                             |
 +----------------------------------------------------------------------------------------------------+
 ```
 
@@ -354,8 +354,8 @@ Tập dữ liệu được phân chia theo tỷ lệ chuẩn Train/Test 80/20 (`
 # 🎯 KHUNG SUY LUẬN THỐNG KÊ & QUY TRÌNH KIỂM ĐỊNH GIẢ THUYẾT (TUẦN 9)
 
 ### 1. Cây Quyết Định Lựa Chọn Phép Kiểm Định Thống Kê:
-* **Bản chất Thống kê Suy luận**: Chuyển từ việc chỉ tóm tắt 21.142 mẫu quan sát được sang khẳng định các quy luật trên toàn thể thị trường bất động sản kèm mức độ không chắc chắn.
-* **So sánh 2 nhóm độc lập (Mặt phố vs Ngõ)**: Phương sai hai nhóm không đồng nhất ($s_1^2 \neq s_2^2$) $\rightarrow$ Bắt buộc dùng **Welch's t-test** (`equal_var=False`) để triệt tiêu sai lầm Loại I.
+* **Bản chất Thống kê Suy luận**: Chuyển từ việc chỉ tóm tắt 37.402 mẫu quan sát được sang khẳng định các quy luật trên toàn thể thị trường bất động sản kèm mức độ không chắc chắn.
+* **So sánh 2 nhóm độc lập (Nội đô vs Ngoại thành)**: Phương sai hai nhóm không đồng nhất ($s_1^2 \neq s_2^2$) $\rightarrow$ Bắt buộc dùng **Welch's t-test** (`equal_var=False`) để triệt tiêu sai lầm Loại I.
 * **So sánh 3+ nhóm định lượng (30 Quận/Huyện)**: Phân tích phương sai **One-way ANOVA** $\rightarrow$ Kết hợp kiểm định hậu nghiệm **Tukey's HSD Post-hoc** phát hiện các cặp quận tương đồng giá (tài sản thay thế).
 * **Dữ liệu phân phối lệch & Ngoại lệ**: Dùng kỹ thuật tái lấy mẫu phi tham số **Bootstrap 1.000 lần** xác lập khoảng tin cậy 95% (CI) không phụ thuộc giả định chuẩn hóa.
 
